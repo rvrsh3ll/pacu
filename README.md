@@ -1,4 +1,6 @@
-**Update 5/6/2020:** Pacu's database structure has been updated and PacuProxy has been removed. This update will break Pacu's database if you have used previous versions of Pacu. To fix this, rename/backup the old `sqLite.db` file and let a new one be generated on the next startup.
+**Update 5/4/2021:** We recently added support for installing via pip, take a look at the [Installation](#Installation) section for running pacu when installed with pip. If you want to run pacu directly from the checked out repo you'll want to use `./cli.py` instead of `python3 pacu.py`.
+
+With this change files that where written to `./sessions/<session>` before are now output to `~/.local/share/pacu/<session>`.
 
 # Quick reference
 - **Where to get help**:
@@ -16,15 +18,14 @@ Pacu is an open-source AWS exploitation framework, designed for offensive securi
 
 ## Installation
 
-Pacu is a fairly lightweight program, as it requires only [Python3.6+](https://www.python.org/downloads/) and pip3 to install a handful of Python libraries. Running install.sh will check your Python version and ensure all Python packages are up to date.
+Pacu is a fairly lightweight program, as it requires only [Python3.6+](https://www.python.org/downloads/) and pip3 to install a handful of Python libraries.
 
 ## Quick Installation
 
 ```
-  > git clone https://github.com/RhinoSecurityLabs/pacu
-  > cd pacu
-  > bash install.sh
-  > python3 pacu.py
+  > pip3 install -U pip
+  > pip3 install -U pacu
+  > pacu
 ```
 
 For a more detailed and user-friendly set of user instructions, please check out the Wiki's [installation guide](https://github.com/RhinoSecurityLabs/pacu/wiki/Installation).
@@ -61,7 +62,7 @@ We'll be working on improving Pacu's core capabilities and building out a well-d
 
 ## Community
 
-We're always happy to get bugs reports in the Pacu framework itself, as well as testing and feedback on different modules, and generally, critical feedback to help refine the framework. We hope to see this grow into a key open-source tool for testing AWS security, and we need your help to make that happen! Any support towards this effort through use, testing, improvement, or just by spreading the word, would be very much appreciated. 
+We're always happy to get bugs reports in the Pacu framework itself, as well as testing and feedback on different modules, and generally, critical feedback to help refine the framework. We hope to see this grow into a key open-source tool for testing AWS security, and we need your help to make that happen! Any support towards this effort through use, testing, improvement, or just by spreading the word, would be very much appreciated.
 
 If you're interested in contributing directly to the Pacu Framework itself, please read our [contribution guidelines](https://github.com/RhinoSecurityLabs/pacu/wiki/Contribution-Guidelines) for code conventions and git-flow notes.
 
@@ -100,23 +101,23 @@ If you are ever stuck, `help` will bring up a list of available commands.
 
 ## Running Pacu From the CLI
 
-* `python3 pacu.py --help` will display the help menu
-* `pyhon3 pacu.py --session <session name>` sets the session to use for commands that require one 
-* `pyhon3 pacu.py --list-modules` will list all modules available (does not require session)
-* `pyhon3 pacu.py --pacu-help` will list the pacu help window (does not require session)
-* `python3 pacu.py --module-name <module name>` the name of a moudule to perform an action on, you can execute or get information on the module
-* `python3 pacu.py --exec` execute the module provided in `--module-name`
-* `python3 pacu.py --module-info` get information on the module provded in `--module-name`
-* `python3 pacu.py --data <service name || all>` query the local SQLAlchemy database to retrieve enumerated information
-* `python3 pacu.py --module-args="<arg1> <value> <arg2> <value>"` supply optional module arguments to the module being executed
-* `python3 pacu.py --set-regions <region1 region2 || all>` set the regions to use in the session, seperate regions by a space or enter `all` for all regions
-* `python3 pacu.py --whoami` get information about the current user 
+* `pacu --help` will display the help menu
+* `pacu --session <session name>` sets the session to use for commands that require one
+* `pacu --list-modules` will list all modules available (does not require session)
+* `pacu --pacu-help` will list the pacu help window (does not require session)
+* `pacu --module-name <module name>` the name of a moudule to perform an action on, you can execute or get information on the module
+* `pacu --exec` execute the module provided in `--module-name`
+* `pacu --module-info` get information on the module provded in `--module-name`
+* `pacu --data <service name || all>` query the local SQLAlchemy database to retrieve enumerated information
+* `pacu --module-args="<arg1> <value> <arg2> <value>"` supply optional module arguments to the module being executed
+* `pacu --set-regions <region1 region2 || all>` set the regions to use in the session, seperate regions by a space or enter `all` for all regions
+* `pacu --whoami` get information about the current user
 
 ## Submitting Requests / Bug Reports
 
 - Report vulnerabilities in Pacu directly to us via email: [pacu@rhinosecuritylabs.com](mailto:pacu@rhinosecuritylabs.com) .
 - Pacu creates error logs within each session's folder, as well as a global error log for out-of-session errors which is created in the main directory. If you can, please include these logs with your bug reports, as it will dramatically simplify the debugging process.
-- If you have a feature request, an idea, or a bug to report, please [submit them here](https://github.com/RhinoSecurityLabs/pacu/issues/new/choose). 
+- If you have a feature request, an idea, or a bug to report, please [submit them here](https://github.com/RhinoSecurityLabs/pacu/issues/new/choose).
   - Please include a description sufficient to reproduce the bug you found, including tracebacks and reproduction steps, and check for other reports of your bug before filing a new bug report. Don't submit duplicates.
 
 ## Wiki

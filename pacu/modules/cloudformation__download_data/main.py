@@ -25,14 +25,24 @@ module_info = {
 
 parser = argparse.ArgumentParser(add_help=False, description=(module_info['description']))
 
-parser.add_argument('--regions', required=False, default=None, help='One or more (comma separated) AWS regions in the format '
+parser.add_argument('--regions', required=False, default=None, help='One or more comma-separated AWS regions in the format '
                                                                     'us-east-1. Defaults to all regions.')
 
 def main(args, pacu_main):
+    # Parse the arguments using argparse
+    args = parser.parse_args(args)
+
     session = pacu_main.get_active_session()
     print = pacu_main.print
     get_regions = pacu_main.get_regions
-    regions = get_regions('cloudformation')
+
+    # Fixing the code so it accepts the regions flag without scanning all regions
+    if args.regions:
+        # Process the regions provided by the user
+        regions = [region.strip() for region in args.regions.split(',')]
+    else:
+        # Use all regions if none are specified
+        regions = get_regions('cloudformation')
 
     def find_secrets(string):
         detections = regex_checker(string)
@@ -53,19 +63,21 @@ def main(args, pacu_main):
     all_stacks = []
     found_regions = []
     for region in regions:
-        client = pacu_main.get_boto3_client('cloudformation', region)
-        print('Looking for CloudFormation Stacks in region {}...'.format(region))
-        stacks_data = client.describe_stacks()
-        stacks = stacks_data['Stacks']
-        all_stacks += stacks
-
-        if stacks_data['Stacks']:
-            print('Getting exports for region: {}'.format(region))
-            exports = client.list_exports()
-            if exports:
-                with outfile('exports', region) as (f):
-                    json.dump(exports, f, indent=1)
-                find_secrets(json.dumps(exports))
+        try:
+            client = pacu_main.get_boto3_client("cloudformation", region)
+            print("Looking for CloudFormation Stacks in region {}...".format(region))
+            stacks_data = client.describe_stacks()
+            stacks = stacks_data["Stacks"]
+            all_stacks += stacks
+        except ClientError as e:
+            print(f"Error: Could not enumerate region {region}")
+            print(f"Error: {e}")
+            continue
+        exports = client.list_exports()
+        if exports:
+            with outfile('exports', region) as (f):
+                json.dump(exports, f, indent=1)
+            find_secrets(json.dumps(exports))
         while 'NextToken' in stacks_data:
             stacks_data = client.describe_stacks(NextToken=(stacks_data['NextToken']))
             stacks += stacks_data['Stacks']

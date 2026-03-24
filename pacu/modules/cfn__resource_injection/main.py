@@ -178,25 +178,27 @@ def main(args, pacu_main: 'Main'):
     if args.bucket:
         bucket = args.bucket
     else:
-        sess = get_session_from_key_name(pacu_main, args.s3_access_key, 'us-east-1')
+        sess = get_aws_key_by_name(pacu_main, args.s3_access_key, 'us-east-1')
         bucket = get_bucket_name(sess.resource('s3'), lambda_dir)
+
+    region = get_region(bucket, pacu_main.get_regions('lambda'))
+    attacker_sess = get_session_from_key_name(pacu_main, args.attacker_key, region)
 
     deploy_key: 'AWSKey' = pacu_main.get_aws_key_by_alias(args.attacker_key)
     if not deploy_key:
         print(f"Did not find the key {args.attacker_key} in pacu, make sure to set this with `set_keys` first.")
 
-    env = lambda_env(pacu_main, bucket, deploy_key)
+    env = lambda_env(deploy_key, region)
 
     deploy_dir = (lambda_dir / bucket)
     if args.delete:
         delete_lambda(deploy_dir, env)
     else:
         principal = principal
-        s3_access_key: 'AWSKey' = pacu_main.get_aws_key_by_alias(args.s3_access_key)
+        s3_access_key: 'AWSKey' = pacu_main.get_aws_key_by_alias_from_db(args.s3_access_key)
         deploy_lambda(pacu_main, env, deploy_dir, bucket, principal, s3_access_key)
 
-    region = get_region(bucket, pacu_main.get_regions('lambda'))
-    s3_notifications_sess = get_session_from_key_name(pacu_main, s3_notifications_setup_key, region)
+    s3_notifications_sess = get_aws_key_by_name(pacu_main, s3_notifications_setup_key, region)
 
     # No need to remove this on args.delete since we are deleting the lambda either way.
     if not args.delete:
@@ -226,7 +228,7 @@ to explicitly set this name if needed however this is not supported at the momen
     return msg
 
 
-def lambda_env(pacu: 'Main', bucket: str, key: 'AWSKey'):
+def lambda_env(key: 'AWSKey', region: str):
     env = {
         "AWS_ACCESS_KEY_ID": key.access_key_id,
         "AWS_SECRET_ACCESS_KEY": key.secret_access_key,
@@ -234,7 +236,7 @@ def lambda_env(pacu: 'Main', bucket: str, key: 'AWSKey'):
     }
     if key.session_token:
         env["AWS_SESSION_TOKEN"] = key.session_token
-    env["AWS_DEFAULT_REGION"] = get_region(bucket, pacu.get_regions('lambda'))
+    env["AWS_DEFAULT_REGION"] = region
     return env
 
 
@@ -243,11 +245,10 @@ def deploy_lambda(pacu: 'Main', env: dict, deploy_dir: Path, bucket: str, princi
 
     print(f"Will deploy lambda to {env['AWS_DEFAULT_REGION']}")
     if not deploy_dir.exists():
-        shutil.copytree((Path(__file__).parent / 'cfn__resource_injection_lambda'), deploy_dir, dirs_exist_ok=True)
+        shutil.copytree((Path(__file__).parent / 'cfn__resource_injection_lambda'), deploy_dir, dirs_exist_ok=False)
 
     config_path = deploy_dir / '.chalice' / 'config.json'
     config = json.loads(config_path.read_text())
-
     config['stages']['dev']['environment_variables']['PRINCIPAL'] = principal
     config['stages']['dev']['environment_variables']['BUCKET'] = bucket
     config['stages']['dev']['environment_variables']['S3_AWS_ACCESS_KEY_ID'] = s3_key.access_key_id
@@ -289,6 +290,19 @@ def get_session_from_key_name(pacu_main: 'Main', key_name: str, region: str = 'u
         aws_secret_access_key=key.secret_access_key,
         aws_session_token=key.session_token,
     )
+
+
+def get_aws_key_by_name(pacu_main: 'Main', key_name: str, region: str = 'us-east-1'):
+    key: 'AWSKey' = pacu_main.get_aws_key_by_alias_from_db(key_name)
+    if not key:
+        raise PacuException(f"Did not find the key {key_name} in pacu, make sure to set this with `set_keys` first.")
+
+    return boto3.Session(
+        region_name=region,
+        aws_access_key_id=key.access_key_id,
+        aws_secret_access_key=key.secret_access_key,
+        aws_session_token=key.session_token,
+    )    
 
 
 def put_bucket_notification(sess: 'boto3.Session', bucket: str, lambda_arn: str):
@@ -370,3 +384,4 @@ def remove_lambda_permission(sess: 'boto3.Session', lambda_name: str):
 
 def summary(data, pacu_main):
     return data
+

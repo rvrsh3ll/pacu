@@ -15,12 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: ['3.9', '3.10']
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies and Configure
@@ -28,6 +28,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry install
+    - name: Test Docker build
+      run: |
+        docker build . --file Dockerfile --tag rhinosecuritylabs/pacu:latest
     - name: Lint with flake8 and mypy
       run: |
         poetry run make lint

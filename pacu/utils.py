@@ -1,10 +1,14 @@
 import signal
 import sys
 import typing
+import zipfile
+import base64
+import binascii
+import re
+from pathlib import Path
 from typing import Optional, Union
 
 from sqlalchemy import create_engine, orm
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from pacu.core.base import DATABASE_CONNECTION_PATH
@@ -79,3 +83,41 @@ def set_sigint_handler(exit_text: Optional[str]=None, value: Union[str, int]=0) 
         sys.exit(value)
 
     signal.signal(signal.SIGINT, sigint_handler)
+
+
+def zip_file(file_path: Path, file_data: dict) -> bytes:
+    '''
+    file_data structure
+    {
+        'file_name_1': 'some_text_data',
+        'file_name_2': 'some_text_data'
+    }
+    '''
+    with zipfile.ZipFile(file_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for file_name in file_data.keys():
+            zf.writestr(file_name, file_data[file_name])
+
+    with open(file_path, 'rb') as f:
+        return f.read()
+
+
+def decode_accesskey_id(AWSKeyID):
+    '''
+    Taken from: https://medium.com/@TalBeerySec/a-short-note-on-aws-key-id-f88cc4317489
+    AWSKeyID is the AWS Access Key ID
+    This function returns the AWS Account ID
+    '''
+    regex = re.compile('(?<![A-Z0-9])[A-Z0-9]{20}(?![A-Z0-9])')
+    if not regex.match(AWSKeyID):
+        print('Invalid AWS Access Key ID')
+        return
+
+    trimmed_AWSKeyID = AWSKeyID[4:]
+    x = base64.b32decode(trimmed_AWSKeyID)
+    y = x[0:6]
+
+    z = int.from_bytes(y, byteorder='big', signed=False)
+    mask = int.from_bytes(binascii.unhexlify(b'7fffffffff80'), byteorder='big', signed=False)
+
+    e = (z & mask) >> 7
+    return ("{:012d}".format(e))

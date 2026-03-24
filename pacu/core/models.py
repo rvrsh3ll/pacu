@@ -3,7 +3,7 @@ import json
 import copy
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, ForeignKey, inspect, Integer, Text, orm
+    Boolean, Column, DateTime, ForeignKey, inspect, Integer, Text, orm, text
 )
 from sqlalchemy.orm import relationship, Session
 from sqlalchemy_utils import JSONType  # type: ignore
@@ -36,6 +36,8 @@ class AWSKey(Base, ModelUpdateMixin):
     permissions_confirmed = Column(JSONType)
     allow_permissions = Column(JSONType, nullable=False, default=dict)
     deny_permissions = Column(JSONType, nullable=False, default=dict)
+    mq = Column(JSONType)
+    sns = Column(JSONType)
 
     def __repr__(self):
         return '<AWSKey #{}: {}>'.format(self.id, self.key_alias)
@@ -71,9 +73,11 @@ class PacuSession(Base, ModelUpdateMixin):
         'CloudTrail',
         'CloudWatch',
         'CodeBuild',
+        'Cognito',
         'Config',
         'DataPipeline',
         'DynamoDB',
+        'DS',
         'EC2',
         'ECS',
         'EKS',
@@ -83,9 +87,11 @@ class PacuSession(Base, ModelUpdateMixin):
         'Inspector',
         'Lambda',
         'Lightsail',
+        'MQ',
         'S3',
         'SecretsManager',
         'Shield',
+        'SNS',
         'SSM',
         'VPC',
         'WAF',
@@ -94,6 +100,8 @@ class PacuSession(Base, ModelUpdateMixin):
         'Route53',
         'RDS',
         'Transfer',
+        'Organizations', 
+        'BeanStalk'
     )
 
     aws_keys = relationship('AWSKey', back_populates='session', cascade='all, delete-orphan', lazy='dynamic')
@@ -114,9 +122,11 @@ class PacuSession(Base, ModelUpdateMixin):
     CloudTrail = Column(JSONType, nullable=False, default=dict)
     CloudWatch = Column(JSONType, nullable=False, default=dict)
     CodeBuild = Column(JSONType, nullable=False, default=dict)
+    Cognito = Column(JSONType, nullable=False, default=dict)
     Config = Column(JSONType, nullable=False, default=dict)
     DataPipeline = Column(JSONType, nullable=False, default=dict)
     DynamoDB = Column(JSONType, nullable=False, default=dict)
+    DS = Column(JSONType, nullable=False, default=dict)
     EC2 = Column(JSONType, nullable=False, default=dict)
     ECS = Column(JSONType, nullable=False, default=dict)
     EKS = Column(JSONType, nullable=False, default=dict)
@@ -126,9 +136,11 @@ class PacuSession(Base, ModelUpdateMixin):
     Inspector = Column(JSONType, nullable=False, default=dict)
     Lambda = Column(JSONType, nullable=False, default=dict)
     Lightsail = Column(JSONType, nullable=False, default=dict)
+    MQ = Column(JSONType, nullable=False, default=dict)
     RDS = Column(JSONType, nullable=False, default=dict)
     S3 = Column(JSONType, nullable=False, default=dict)
     SecretsManager = Column(JSONType, nullable=False, default=dict)
+    SNS = Column(JSONType, nullable=False, default=dict)
     SSM = Column(JSONType, nullable=False, default=dict)
     Shield = Column(JSONType, nullable=False, default=dict)
     VPC = Column(JSONType, nullable=False, default=dict)
@@ -139,6 +151,8 @@ class PacuSession(Base, ModelUpdateMixin):
     Route53 = Column(JSONType, nullable=False, default=dict)
     RDS = Column(JSONType, nullable=False, default=dict)
     Transfer = Column(JSONType, nullable=False, default=dict)
+    Organizations = Column(JSONType, nullable=False, default=dict)
+    BeanStalk = Column(JSONType, nullable=False, default=dict)
 
     def __repr__(self) -> str:
         if self.key_alias:
@@ -228,22 +242,22 @@ def migrations(database: 'Session'):
     NULL.
     """
     rows = []
-    for row in database.execute(f'pragma table_info({PacuSession.__tablename__})').fetchall():
+    for row in database.execute(text(f'pragma table_info({PacuSession.__tablename__})')).fetchall():
         rows.append(row[1])
 
     # If more rows are added here change this to update the db dynamically. Not worrying about this for now since it
     # doesn't happen often, and we'll likely rewrite things before then.
     if "user_agent_suffix" not in rows:
         column_type = PacuSession.user_agent_suffix.type.compile(engine.dialect)
-        database.execute('ALTER TABLE %s ADD COLUMN user_agent_suffix %s' % (PacuSession.__tablename__, column_type))
+        database.execute(text('ALTER TABLE %s ADD COLUMN user_agent_suffix %s' % (PacuSession.__tablename__, column_type)))
 
     for svc in PacuSession.aws_data_field_names:
         if svc not in rows:
             column = getattr(PacuSession, svc)
             column_type = column.type.compile(engine.dialect)
-            database.execute(
+            database.execute(text(
                 'ALTER TABLE %s ADD COLUMN %s %s DEFAULT "{}" NOT NULL'
                 % (PacuSession.__tablename__, svc, column_type)
-            )
+            ))
 
 

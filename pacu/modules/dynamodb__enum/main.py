@@ -50,7 +50,7 @@ def fetch_dynamodb_data(client, func, key, print, **kwargs):
         if isinstance(data, (dict, str)):
             return data
         while 'LastEvaluatedTableName' in response:
-            response = caller({**kwargs, **{'ExclusiveStartTableName': response['LastEvaluatedTableName']}})
+            response = caller(ExclusiveStartTableName=response['LastEvaluatedTableName'], **kwargs)
             data.extend(response[key])
         return data
     except client.exceptions.ResourceNotFoundException:
@@ -157,7 +157,7 @@ def summary(data, pacu_main):
 
 def writeTableData(directory, table, data):
     if not os.path.exists(directory):
-        os.mkdir(directory)
+        os.makedirs(directory, exist_ok=True)
     path = os.path.join(directory, table + '.txt')
     with open(path, 'w+') as writeTableDump:
         writeTableDump.write(pprint.pformat(data))
